@@ -3,6 +3,20 @@ using System.Collections.Generic;
 
 public class PathFinder : MonoBehaviour
 {
+
+    private List<Vector3> searchFrontier;
+
+
+    private float getCost(GraphNode node, GraphNode start, GraphNode destination, Vector3 target)
+    {
+        Vector3 dirToTarget = target - node.GetCenter();
+        Vector3 dirToStart = start.GetCenter() - node.GetCenter();
+        return dirToTarget.Normalize() + dirToStart.Normalize()
+    }
+
+
+
+
     // Assignment 2: Implement AStar
     //
     // DO NOT CHANGE THIS SIGNATURE (parameter types + return type)
@@ -18,6 +32,8 @@ public class PathFinder : MonoBehaviour
     {
         // Implement A* here
         List<Vector3> path = new List<Vector3>() { target };
+
+
 
         // return path and number of nodes expanded
         return (path, 0);
@@ -71,8 +87,6 @@ public class PathFinder : MonoBehaviour
             Debug.Log("found path of length " + path.Count + " expanded " + expanded + " nodes, out of: " + graph.all_nodes.Count);
             EventBus.SetPath(path);
         }
-        
-
     }
 
     
