@@ -1,10 +1,31 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+// Internal class for A* entries
+private class AStarEntry
+{
+    public GraphNode node;
+    public float g;              // cost from start to this entry
+    public float f;              // g + heuristic
+    public Vector3 position;     // last waypoint (start center or wall midpoint)
+    public AStarEntry parent;    // previous entry in chain
+    public Wall cameThrough;     // wall crossed to reach this node
+
+    public AStarEntry(GraphNode node, float g, float f, Vector3 position, AStarEntry parent)
+    {
+        this.node = node;
+        this.g = g;
+        this.f = f;
+        this.position = position;
+        this.parent = parent;
+        this.cameThrough = cameThrough;
+    }
+}
+
+
 public class PathFinder : MonoBehaviour
 {
-
-    private List<Vector3> searchFrontier;
+    private int inf = -1;
 
 
     private float getCost(GraphNode node, GraphNode start, GraphNode destination, Vector3 target)
@@ -32,12 +53,71 @@ public class PathFinder : MonoBehaviour
     {
         // Implement A* here
         List<Vector3> path = new List<Vector3>() { target };
+        GraphNode parent = null;
+        List<AStarEntry> frontier = new List<AStarEntry>() { start.GetID() };
+        HashSet<AStarEntry> closed = new HashSet<AStarEntry>();
+        Dictionary<AStarEntry,float> costs = new Dictionary<AStarEntry,float>();
+        int expansions;
 
+        // make first entry
+        Vector3 startPos = start.GetCenter()
+        float h0 = (target.GetCenter() - start.GetCenter()).Normalize();
+        AStarEntry startEntry = new AStarEntry(start, 0f, h0, startPos, null);
+        costs[start.GetID()] = 0f;
 
+        while (frontier.Count > 0)
+        {
+            AStarEntry current = frontier[0];
+            frontier.RemoveAt(0);
+
+            if (frontier[0] == destination.GetID())
+            {
+                return (ReconstructPath(current, target), expansions);
+            }
+
+            closed.Add(current)
+            expansions++;
+
+            List<GraphNeighbors> neighbors = current.node.GetNeighbors();
+            for (int i = 0; i < neighbors.Count; i++){
+                GraphNode nextNode = neighbors[i].GetNode();
+                int nextID = nextNode.GetID();
+                // this line is supposed to look for next's ID in 
+                // closed, but closed now stores AStarEntry instead of
+                // IDs (int)
+                // i don't think we can make a new AStarEntry 
+                // for nextNode at this step because we haven't calculated
+                // the f and g values yet
+                // it seems like we should go back to having closed
+                // store IDs and just find a way to map back from IDs
+                // to AStarEntry for line 78
+                if (closed.Contains())
+            }
+        }
+        
+
+         else 
+        {
+
+        }
 
         // return path and number of nodes expanded
         return (path, 0);
 
+    }
+
+    private static List<Vector3> ReconstructPath(AStarEntry endEntry, Vector target)
+    {
+    List<Vector3> path = new List<Vector3>();
+    AStarEntry e = endEntry;
+    while (e.parent != null)
+    {
+        path.Add(e.position);
+        e = e.parent;
+    }
+    path.Reverse();
+    path.Add(target);
+    return path;
     }
 
     public Graph graph;
