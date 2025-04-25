@@ -2048,7 +2048,7 @@ MonoBehaviour:
   linear_acceleration: 10
   rotational_acceleration: 180
   holonomic: 0
-  nonholonomic_factor: 3
+  nonholonomic_factor: 10
   start_position: {x: 0, y: 0, z: 0}
   start_rotation: {x: 0, y: 0, z: 0, w: 0}
   map: {fileID: 133771514}

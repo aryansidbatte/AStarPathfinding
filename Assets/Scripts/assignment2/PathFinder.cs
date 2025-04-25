@@ -1,42 +1,35 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// Internal class for A* entries
-private class AStarEntry
-{
-    public GraphNode node;
-    public float g;              // cost from start to this entry
-    public float f;              // g + heuristic
-    public Vector3 position;     // last waypoint (start center or wall midpoint)
-    public AStarEntry parent;    // previous entry in chain
-    public Wall cameThrough;     // wall crossed to reach this node
-
-    public AStarEntry(GraphNode node, float g, float f, Vector3 position, AStarEntry parent)
-    {
-        this.node = node;
-        this.g = g;
-        this.f = f;
-        this.position = position;
-        this.parent = parent;
-        this.cameThrough = cameThrough;
-    }
-}
-
-
 public class PathFinder : MonoBehaviour
 {
-    private int inf = -1;
+    private class AStarEntry
+    {
+        public GraphNode node;
+        public float g;              // cost from start to this entry
+        public float f;              // g + heuristic
+        public Vector3 position;     // last waypoint (start center or wall midpoint)
+        public AStarEntry parent;    // previous entry in chain
 
+        public AStarEntry(GraphNode node, float g, float f, Vector3 position, AStarEntry parent)
+        {
+            this.node = node;
+            this.g = g;
+            this.f = f;
+            this.position = position;
+            this.parent = parent;
+        }
+    }
+    
+    //private int inf = -1;
 
+    /*
     private float getCost(GraphNode node, GraphNode start, GraphNode destination, Vector3 target)
     {
         Vector3 dirToTarget = target - node.GetCenter();
         Vector3 dirToStart = start.GetCenter() - node.GetCenter();
         return dirToTarget.Normalize() + dirToStart.Normalize()
-    }
-
-
-
+    } */
 
     // Assignment 2: Implement AStar
     //
@@ -52,72 +45,87 @@ public class PathFinder : MonoBehaviour
     public static (List<Vector3>, int) AStar(GraphNode start, GraphNode destination, Vector3 target)
     {
         // Implement A* here
-        List<Vector3> path = new List<Vector3>() { target };
-        GraphNode parent = null;
-        List<AStarEntry> frontier = new List<AStarEntry>() { start.GetID() };
-        HashSet<AStarEntry> closed = new HashSet<AStarEntry>();
-        Dictionary<AStarEntry,float> costs = new Dictionary<AStarEntry,float>();
-        int expansions;
+        // Frontier sorted by f-value
+        List<AStarEntry> frontier = new List<AStarEntry>();
+        HashSet<int> closed = new HashSet<int>();
+        Dictionary<int, float> bestG = new Dictionary<int, float>();
+        int expansions = 0;
 
-        // make first entry
-        Vector3 startPos = start.GetCenter()
-        float h0 = (target.GetCenter() - start.GetCenter()).Normalize();
+        // Initialize with start node
+        Vector3 startPos = start.GetCenter();
+        float h0 = Vector3.Distance(startPos, target);
         AStarEntry startEntry = new AStarEntry(start, 0f, h0, startPos, null);
-        costs[start.GetID()] = 0f;
+        frontier.Insert(0, startEntry);
+        bestG[start.GetID()] = 0f;
 
         while (frontier.Count > 0)
         {
+            // Pop lowest-f
             AStarEntry current = frontier[0];
             frontier.RemoveAt(0);
 
-            if (frontier[0] == destination.GetID())
+            // Goal check
+            if (current.node.GetID() == destination.GetID())
             {
+                // Reconstruct path via helper
                 return (ReconstructPath(current, target), expansions);
             }
 
-            closed.Add(current)
+            closed.Add(current.node.GetID());
             expansions++;
 
-            List<GraphNeighbors> neighbors = current.node.GetNeighbors();
-            for (int i = 0; i < neighbors.Count; i++){
-                GraphNode nextNode = neighbors[i].GetNode();
+            // Expand neighbors
+            foreach (GraphNeighbor nbr in current.node.GetNeighbors())
+            {
+                GraphNode nextNode = nbr.GetNode();
                 int nextID = nextNode.GetID();
-                // this line is supposed to look for next's ID in 
-                // closed, but closed now stores AStarEntry instead of
-                // IDs (int)
-                // i don't think we can make a new AStarEntry 
-                // for nextNode at this step because we haven't calculated
-                // the f and g values yet
-                // it seems like we should go back to having closed
-                // store IDs and just find a way to map back from IDs
-                // to AStarEntry for line 78
-                if (closed.Contains())
+                if (closed.Contains(nextID)) continue;
+
+                // Midpoint of shared wall
+                Vector3 mid = nbr.GetWall().midpoint;
+                float gNew = current.g + Vector3.Distance(current.position, mid);
+
+                // Skip if not an improvement
+                if (bestG.TryGetValue(nextID, out float prevG) && prevG <= gNew)
+                    continue;
+
+                bestG[nextID] = gNew;
+                float fNew = gNew + Vector3.Distance(mid, target);
+                AStarEntry entry = new AStarEntry(nextNode, gNew, fNew, mid, current);
+                InsertSorted(frontier, entry);
             }
         }
-        
 
-         else 
+        // No path found: return only target
+        return (new List<Vector3> { target }, expansions);
+    }
+
+    private static List<Vector3> ReconstructPath(AStarEntry endEntry, Vector3 target)
+    {
+        List<Vector3> path = new List<Vector3>();
+        AStarEntry e = endEntry;
+        while (e.parent != null)
         {
-
+            path.Add(e.position);
+            e = e.parent;
         }
-
-        // return path and number of nodes expanded
-        return (path, 0);
-
+        path.Reverse();
+        path.Add(target);
+        return path;
     }
 
-    private static List<Vector3> ReconstructPath(AStarEntry endEntry, Vector target)
+    // Keep frontier sorted by f ascending
+    private static void InsertSorted(List<AStarEntry> list, AStarEntry entry)
     {
-    List<Vector3> path = new List<Vector3>();
-    AStarEntry e = endEntry;
-    while (e.parent != null)
-    {
-        path.Add(e.position);
-        e = e.parent;
-    }
-    path.Reverse();
-    path.Add(target);
-    return path;
+        int low = 0;
+        int high = list.Count;
+        while (low < high)
+        {
+            int mid = (low + high) / 2;
+            if (entry.f < list[mid].f) high = mid;
+            else low = mid + 1;
+        }
+        list.Insert(low, entry);
     }
 
     public Graph graph;
@@ -130,9 +138,7 @@ public class PathFinder : MonoBehaviour
 
     // Update is called once per frame
     void Update()
-    {
-        
-    }
+    { }
 
     public void SetGraph(Graph g)
     {
